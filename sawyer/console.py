@@ -41,13 +41,17 @@ def main():
     try:
         url = tag[0]['object']['url']
     except IndexError:
-        raise ValueError('Couldn\'t find previous tag')
+        raise ValueError('Couldn\'t find previous tag. '
+                         'Did you use a version prefix?')
 
     commit = requests.get(url, auth=(user, token)).json()
     previous_date = dateutil.parser.parse(commit['author']['date'])
 
-    merged_prs_since = [pr for pr in prs
-                        if (pr.merged_at and pr.merged_at > previous_date)]
+    merged_prs_since = sorted(
+        [pr for pr in prs if (pr.merged_at and pr.merged_at > previous_date)],
+        key=lambda pr: pr.merged_at,
+        reverse=True
+    )
 
     context = {
         'current_tag': current_tag,
