@@ -33,7 +33,8 @@ setup(
         'markdown',
         'Jinja2',
         'requests',
-        'python-dateutil'
+        'python-dateutil',
+        'pytz',
     ],
     entry_points={
         'console_scripts': [

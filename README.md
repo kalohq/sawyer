@@ -40,6 +40,11 @@ It also assumes that you're creating a changelog for something that isn't yet
 released – when you do, you should change `Unreleased` to an 
 [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601)-formatted date.
 
+If the current limitations of the pull request organisation strategy -- or the
+lack of it -- doesn't work out for you, simply pass sawyer the `--all-prs` flag
+to print all PRs merged into the repository, ever. You'll have to clean the
+backlog manually.
+
 ## Later plans
 
 The intention is that `sawyer` will be able to manage a changelog completely.
