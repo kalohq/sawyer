@@ -1,7 +1,9 @@
 import argparse
 import dateutil.parser
+import datetime
 import getpass
 import os
+import pytz
 import requests
 import sawyer
 
@@ -13,6 +15,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', dest='github-user', action='store')
     parser.add_argument('-t', dest='github-token', action='store')
+    parser.add_argument('--all-prs', dest='all-prs', action='store_const',
+                        const=True, default=False)
     parser.add_argument('repo')
     parser.add_argument('previous-tag')
     parser.add_argument('current-tag')
@@ -21,6 +25,7 @@ def main():
 
     user = args['github-user']
     token = args['github-token']
+    all_prs = args['all-prs']
     owner, repo = args['repo'].split('/')
     previous_tag = args['previous-tag']
     current_tag = args['current-tag']
@@ -45,7 +50,12 @@ def main():
                          'Did you use a version prefix?')
 
     commit = requests.get(url, auth=(user, token)).json()
-    previous_date = dateutil.parser.parse(commit['author']['date'])
+
+    if all_prs:
+        previous_date = pytz.utc.localize(datetime.datetime.fromtimestamp(0))
+    else:
+        field = 'author' if 'author' in commit else 'tagger'
+        previous_date = dateutil.parser.parse(commit[field]['date'])
 
     merged_prs_since = sorted(
         [pr for pr in prs if (pr.merged_at and pr.merged_at > previous_date)],
