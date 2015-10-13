@@ -5,8 +5,7 @@ import os
 import requests
 import sawyer
 
-from .changelog import render_changelog
-from .github import PullRequestFetcher, TagFetcher
+import changelog
 
 
 def main():
@@ -28,8 +27,8 @@ def main():
     if not token:
         token = getpass.getpass()
 
-    pr_fetcher = PullRequestFetcher(user, token, owner, repo)
-    tag_fetcher = TagFetcher(user, token, owner, repo)
+    pr_fetcher = changelog.github.PullRequestFetcher(user, token, owner, repo)
+    tag_fetcher = changelog.github.TagFetcher(user, token, owner, repo)
     prs = pr_fetcher.fetch()
     tags = tag_fetcher.fetch()
 
@@ -57,4 +56,4 @@ def main():
         'pull_requests': merged_prs_since
     }
 
-    print(render_changelog(context))
+    print(changelog.render_changelog(context))
