@@ -6,15 +6,25 @@ import os
 import pytz
 import requests
 import sawyer
+import logging
 
 from .changelog import render_changelog
 from .github import PullRequestFetcher, TagFetcher
+
+
+def configure_logging(quiet):
+    log_level = logging.ERROR if quiet else logging.INFO
+    logging.basicConfig(
+        format='%(message)s', level=log_level
+    )
+    logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', dest='github-user', action='store')
     parser.add_argument('-t', dest='github-token', action='store')
+    parser.add_argument('-q', dest='quiet', action='store_true', default=False)
     parser.add_argument('--all-prs', dest='all-prs', action='store_const',
                         const=True, default=False)
     parser.add_argument('repo')
@@ -29,6 +39,9 @@ def main():
     owner, repo = args['repo'].split('/')
     previous_tag = args['previous-tag']
     current_tag = args['current-tag']
+    quiet = args['quiet']
+
+    configure_logging(quiet)
 
     if not token:
         token = getpass.getpass()
