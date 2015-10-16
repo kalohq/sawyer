@@ -1,7 +1,11 @@
 import requests
+import logging
 
 from .pull_request import PullRequest
 API_URI = 'https://api.github.com/repos/{owner}/{repo}'
+
+
+_log = logging.getLogger(__name__)
 
 
 class GithubFetcher:
@@ -29,7 +33,9 @@ class PullRequestFetcher(GithubFetcher):
             'direction': 'asc'
         }
 
-        response = requests.get(self.uri, params=params, auth=self.auth)
+        response = requests.get(
+            self.uri, params=params, auth=self.auth
+        )
 
         if response.status_code == 401:
             raise ValueError('Wrong password')
@@ -41,7 +47,7 @@ class PullRequestFetcher(GithubFetcher):
             for item in raw:
                 raw_prs.append(item)
 
-            print('\rGot {} pull requests'.format(len(raw_prs)), end='\r')
+            _log.info('Got {} pull requests'.format(len(raw_prs)))
             return self._fetch_recursive(page=page+1, raw_prs=raw_prs)
         else:
             return raw_prs
