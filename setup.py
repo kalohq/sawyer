@@ -28,6 +28,7 @@ setup(
     author='Christoffer Torris Olsen',
     author_email='chris@lystable.com',
     url='https://github.com/lystable/sawyer',
+    zip_safe=False,
     license='MIT',
     install_requires=[
         'markdown',
