@@ -5,7 +5,7 @@
 **Added**:
 
 {% for pr in pull_requests -%}
-- {{ pr.raw.title }} 
+- {{ pr.raw.title }}
   ([@{{ pr.user }}](https://github.com/{{ pr.user }}/)
   in [\#{{pr.number}}](https://github.com/{{ owner }}/{{ repo }}/pull/{{ pr.number }}/))
 {% endfor %}
