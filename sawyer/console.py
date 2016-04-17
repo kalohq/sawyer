@@ -1,10 +1,13 @@
 import argparse
 import getpass
+import re
 import sawyer
 import logging
 
 from .changelog import render_changelog
 from .github import PullRequestFetcher, DiffFetcher
+
+PR_MESSAGE_FORMAT = re.compile('^Merge pull request #(\d+) from (.*)')
 
 
 def configure_logging(quiet):
@@ -13,6 +16,20 @@ def configure_logging(quiet):
         format='%(message)s', level=log_level
     )
     logging.getLogger("requests").setLevel(logging.WARNING)
+
+
+def merged_pr_numbers(commits):
+    """ Iterate through commits and identify merge commits
+    """
+
+    merged_pr_numbers = []
+
+    for commit in commits:
+        pr_message = PR_MESSAGE_FORMAT.match(commit['commit']['message'])
+        if pr_message:
+            merged_pr_numbers.append(int(pr_message.group(1)))
+
+    return merged_pr_numbers
 
 
 def main():
@@ -47,11 +64,12 @@ def main():
     diff_fetcher = DiffFetcher(user, token, owner, repo)
 
     if not all_prs:
-        merged_pr_numbers = diff_fetcher.merged_pr_numbers(previous_tag, head)
+        commits = diff_fetcher.fetch(previous_tag, head)
+        pr_numbers = merged_pr_numbers(commits)
     else:
-        merged_pr_numbers = None
+        pr_numbers = None
 
-    prs = pr_fetcher.fetch(pr_numbers=merged_pr_numbers)
+    prs = pr_fetcher.fetch(pr_numbers=pr_numbers)
 
     context = {
         'current_tag': current_tag,
