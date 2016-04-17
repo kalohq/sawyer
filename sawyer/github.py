@@ -1,9 +1,12 @@
+import re
 import requests
 import logging
 
 from .pull_request import PullRequest
 
 API_URI = 'https://api.github.com/repos/{owner}/{repo}'
+
+PR_MESSAGE_FORMAT = re.compile('^Merge pull request #(\d+) from (.*)')
 
 
 _log = logging.getLogger(__name__)
@@ -64,7 +67,10 @@ class PullRequestFetcher(GithubFetcher):
         )
 
     def fetch(self, pr_numbers=None):
-        earliest_pr = sorted(pr_numbers)[0]
+        if pr_numbers:
+            earliest_pr = sorted(pr_numbers)[0]
+        else:
+            earliest_pr = 1
 
         raw_prs = self._fetch_recursive(1, stop_at=earliest_pr)
         pull_requests = []
@@ -86,3 +92,17 @@ class DiffFetcher(GithubFetcher):
         ).json()
 
         return response['commits']
+
+    def merged_pr_numbers(self, base, head):
+        commits = self.fetch(base, head)
+
+        # Iterate through commits and identify merge commits
+
+        merged_pr_numbers = []
+
+        for commit in commits:
+            pr_message = PR_MESSAGE_FORMAT.match(commit['commit']['message'])
+            if pr_message:
+                merged_pr_numbers.append(int(pr_message.group(1)))
+
+        return merged_pr_numbers

@@ -1,13 +1,10 @@
 import argparse
 import getpass
-import re
 import sawyer
 import logging
 
 from .changelog import render_changelog
 from .github import PullRequestFetcher, DiffFetcher
-
-PR_MESSAGE_FORMAT = re.compile('^Merge pull request #(\d+) from (.*)')
 
 
 def configure_logging(quiet):
@@ -23,6 +20,8 @@ def main():
     parser.add_argument('-u', dest='github-user', action='store')
     parser.add_argument('-t', dest='github-token', action='store')
     parser.add_argument('-q', dest='quiet', action='store_true', default=False)
+    parser.add_argument('--all-prs', dest='all-prs', action='store_const',
+                        const=True, default=False)
     parser.add_argument('--head', default='develop')
     parser.add_argument('repo')
     parser.add_argument('previous-tag')
@@ -33,6 +32,7 @@ def main():
     user = args['github-user']
     token = args['github-token']
     owner, repo = args['repo'].split('/')
+    all_prs = args['all-prs']
     head = args['head']
     previous_tag = args['previous-tag']
     current_tag = args['current-tag']
@@ -46,22 +46,12 @@ def main():
     pr_fetcher = PullRequestFetcher(user, token, owner, repo)
     diff_fetcher = DiffFetcher(user, token, owner, repo)
 
-    # Get diff
+    if not all_prs:
+        merged_pr_numbers = diff_fetcher.merged_pr_numbers(previous_tag, head)
+    else:
+        merged_pr_numbers = None
 
-    commits = diff_fetcher.fetch(previous_tag, head)
-
-    # Iterate through commits and identify merge commits
-
-    merged_pr_numbers = []
-
-    for commit in commits:
-        pr_message = PR_MESSAGE_FORMAT.match(commit['commit']['message'])
-        if pr_message:
-            merged_pr_numbers.append(int(pr_message.group(1)))
-
-    # Fetch the extracted PRs
-
-    prs = pr_fetcher.fetch(merged_pr_numbers)
+    prs = pr_fetcher.fetch(pr_numbers=merged_pr_numbers)
 
     context = {
         'current_tag': current_tag,
