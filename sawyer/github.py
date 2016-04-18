@@ -2,6 +2,7 @@ import requests
 import logging
 
 from .pull_request import PullRequest
+
 API_URI = 'https://api.github.com/repos/{owner}/{repo}'
 
 
@@ -26,11 +27,11 @@ class GithubFetcher:
 class PullRequestFetcher(GithubFetcher):
     endpoint = '/pulls'
 
-    def _fetch_recursive(self, page, raw_prs=[]):
+    def _fetch_recursive(self, page, raw_prs=[], stop_at=None):
         params = {
             'state': 'all',
             'page': page,
-            'direction': 'asc'
+            'direction': 'desc'
         }
 
         response = requests.get(
@@ -43,23 +44,48 @@ class PullRequestFetcher(GithubFetcher):
         raw = response.json()
 
         # Until no content is returned, get more PRs
-        if raw:
-            for item in raw:
-                raw_prs.append(item)
-
-            _log.info('Got {} pull requests'.format(len(raw_prs)))
-            return self._fetch_recursive(page=page+1, raw_prs=raw_prs)
-        else:
+        if not raw:
             return raw_prs
 
-    def fetch(self):
-        raw_prs = self._fetch_recursive(1)
+        should_stop = False
+
+        for item in raw:
+            raw_prs.append(item)
+            if item['number'] <= stop_at:
+                should_stop = True
+
+        _log.info('Got {} pull requests'.format(len(raw_prs)))
+
+        if should_stop:
+            return raw_prs
+
+        return self._fetch_recursive(
+            page=page + 1, raw_prs=raw_prs, stop_at=stop_at
+        )
+
+    def fetch(self, pr_numbers=None):
+        if pr_numbers:
+            earliest_pr = sorted(pr_numbers)[0]
+        else:
+            earliest_pr = 1
+
+        raw_prs = self._fetch_recursive(1, stop_at=earliest_pr)
         pull_requests = []
         for pr in raw_prs:
+            if pr_numbers and pr['number'] not in pr_numbers:
+                continue
+
             pull_requests.append(PullRequest(pr))
 
         return pull_requests
 
 
-class TagFetcher(GithubFetcher):
-    endpoint = '/git/refs/tags'
+class DiffFetcher(GithubFetcher):
+    endpoint = '/compare/{base}...{head}'
+
+    def fetch(self, base, head):
+        response = requests.get(
+            self.uri.format(base=base, head=head), auth=self.auth
+        ).json()
+
+        return response['commits']

@@ -1,15 +1,13 @@
 import argparse
-import dateutil.parser
-import datetime
 import getpass
-import os
-import pytz
-import requests
+import re
 import sawyer
 import logging
 
 from .changelog import render_changelog
-from .github import PullRequestFetcher, TagFetcher
+from .github import PullRequestFetcher, DiffFetcher
+
+PR_MESSAGE_FORMAT = re.compile('^Merge pull request #(\d+) from (.*)')
 
 
 def configure_logging(quiet):
@@ -20,6 +18,20 @@ def configure_logging(quiet):
     logging.getLogger("requests").setLevel(logging.WARNING)
 
 
+def merged_pr_numbers(commits):
+    """ Iterate through commits and identify merge commits
+    """
+
+    merged_pr_numbers = []
+
+    for commit in commits:
+        pr_message = PR_MESSAGE_FORMAT.match(commit['commit']['message'])
+        if pr_message:
+            merged_pr_numbers.append(int(pr_message.group(1)))
+
+    return merged_pr_numbers
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', dest='github-user', action='store')
@@ -27,6 +39,7 @@ def main():
     parser.add_argument('-q', dest='quiet', action='store_true', default=False)
     parser.add_argument('--all-prs', dest='all-prs', action='store_const',
                         const=True, default=False)
+    parser.add_argument('--head', default='develop')
     parser.add_argument('repo')
     parser.add_argument('previous-tag')
     parser.add_argument('current-tag')
@@ -35,8 +48,9 @@ def main():
 
     user = args['github-user']
     token = args['github-token']
-    all_prs = args['all-prs']
     owner, repo = args['repo'].split('/')
+    all_prs = args['all-prs']
+    head = args['head']
     previous_tag = args['previous-tag']
     current_tag = args['current-tag']
     quiet = args['quiet']
@@ -47,41 +61,22 @@ def main():
         token = getpass.getpass()
 
     pr_fetcher = PullRequestFetcher(user, token, owner, repo)
-    tag_fetcher = TagFetcher(user, token, owner, repo)
-    prs = pr_fetcher.fetch()
-    tags = tag_fetcher.fetch()
+    diff_fetcher = DiffFetcher(user, token, owner, repo)
 
-    def correct_tag(tag):
-        return tag if tag['ref'].split('/')[-1] == previous_tag else None
-
-    tag = list(filter(None, map(correct_tag, tags)))
-
-    try:
-        url = tag[0]['object']['url']
-    except IndexError:
-        raise ValueError('Couldn\'t find previous tag. '
-                         'Did you use a version prefix?')
-
-    commit = requests.get(url, auth=(user, token)).json()
-
-    if all_prs:
-        previous_date = pytz.utc.localize(datetime.datetime.fromtimestamp(0))
+    if not all_prs:
+        commits = diff_fetcher.fetch(previous_tag, head)
+        pr_numbers = merged_pr_numbers(commits)
     else:
-        field = 'author' if 'author' in commit else 'tagger'
-        previous_date = dateutil.parser.parse(commit[field]['date'])
+        pr_numbers = None
 
-    merged_prs_since = sorted(
-        [pr for pr in prs if (pr.merged_at and pr.merged_at > previous_date)],
-        key=lambda pr: pr.merged_at,
-        reverse=True
-    )
+    prs = pr_fetcher.fetch(pr_numbers=pr_numbers)
 
     context = {
         'current_tag': current_tag,
         'previous_tag': previous_tag,
         'owner': owner,
         'repo': repo,
-        'pull_requests': merged_prs_since
+        'pull_requests': prs
     }
 
     print(render_changelog(context))
