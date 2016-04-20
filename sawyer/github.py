@@ -27,7 +27,10 @@ class GithubFetcher:
 class PullRequestFetcher(GithubFetcher):
     endpoint = '/pulls'
 
-    def _fetch_recursive(self, page, state, raw_prs=[], stop_at=None):
+    def _fetch_recursive(self, page, state, raw_prs=None, stop_at=None):
+        if raw_prs is None:
+            raw_prs = []
+
         params = {
             'state': state,
             'page': page,
@@ -63,7 +66,10 @@ class PullRequestFetcher(GithubFetcher):
             page=page + 1, state=state, raw_prs=raw_prs, stop_at=stop_at
         )
 
-    def fetch(self, pr_numbers=None, state='all'):
+    def fetch(self, pr_numbers=None, state=None):
+        if state is None:
+            state = 'all'
+
         if pr_numbers:
             earliest_pr = sorted(pr_numbers)[0]
         else:
