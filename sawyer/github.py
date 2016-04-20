@@ -70,6 +70,9 @@ class PullRequestFetcher(GithubFetcher):
         if state is None:
             state = 'all'
 
+        if pr_numbers == []:
+            return []
+
         if pr_numbers:
             earliest_pr = sorted(pr_numbers)[0]
         else:
