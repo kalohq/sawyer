@@ -50,3 +50,7 @@ backlog manually.
 The intention is that `sawyer` will be able to manage a changelog completely.
 Feeding in a well-formatted change log, it should be possible to generate
 logs for a new release very quickly.
+
+## License
+
+Apache 2.0. See LICENSE for details
